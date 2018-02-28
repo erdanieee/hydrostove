@@ -30,51 +30,62 @@ Loop:
 
 *********************************************************************/
 #include <Arduino.h>
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>     //see https://github.com/adafruit/Adafruit-GFX-Library
-#include <Adafruit_SSD1306.h> //see https://github.com/adafruit/Adafruit_SSD1306
 #include <SignalFilter.h>     //see https://github.com/jeroendoggen/Arduino-signal-filtering-library
 #include <FlowMeter.h>        //see https://github.com/sekdiy/FlowMeter
+#include <main.h>
+#include <HydroStoveDisplay.h>
+
 
 //Define pin in/out
 #define PIN_SERIAL_RX     0                         //hardware
 #define PIN_SERIAL_TX     1                         //hardware
 #define PIN_FLOWMETER     2                         //External interrupt (2,3)
 #define PIN_OLED_RESET    3                         //IO OUT   (for OLED)
-#define PIN_I2C_SDA       4                         //hardware (for OLED)
-#define PIN_I2C_SCL       5                         //hardware (for OLED)
+//#define PIN_I2C_SDA       4                         //hardware (for OLED)
+//#define PIN_I2C_SCL       5                         //hardware (for OLED)
 #define PIN_BUTTON_1      6                         //IO IN
 #define PIN_TEMP_OUT      7                         //ADC IN
 #define PIN_TEMP_IN       8                         //ADC IN
 #define PIN_LED           13                        //hardware
 
-#define NUMFLAKES 10
-#define XPOS 0
-#define YPOS 1
-#define DELTAY 2
+//#define NUMFLAKES 10
+//#define XPOS 0
+//#define YPOS 1
+//#define DELTAY 2
 
 // set the measurement update period to 1s (1000 ms)
 #define DELTA_FLOW    1000
 
+// refresca la pantala a 2fps
+#define DELTA_DISPLAY 500
+
+#define SERIAL_RESISTOR_HOT   10000
+#define SERIAL_RESISTOR_COLD   10000
 #define THERMISTORNOMINAL    100000                // resistance at 25 degrees C
 #define TEMPERATURENOMINAL   25                    // temp. for nominal resistance (almost always 25 C)
 #define BCOEFFICIENT         3950                  // The beta coefficient of the thermistor (usually 3000-4000)
 #define SERIESRESISTOR       98700                 // the value of the 'other' resistor
 
 
-Adafruit_SSD1306 display(PIN_OLED_RESET);
+
+
+
+HydroStoveDisplay display(PIN_OLED_RESET);
 
 FlowSensorProperties MySensor = {60.0f, 4.5f, {1.2, 1.1, 1.05, 1, 1, 1, 1, 0.95, 0.9, 0.8}}; //see https://github.com/sekdiy/FlowMeter/wiki/Calibration
 FlowMeter Meter = FlowMeter(PIN_FLOWMETER, MySensor);
 
 SignalFilter outSensor, inSensor;
-int adcOut, adcIn;
+int tempOut, tempIn;
 
-unsigned long currentTime;
+unsigned long currentTime, lastFlowMeter, lastDisplay, lastBuffered;
 volatile int adcAux;
-unsigned long lastFlowMeter;
 unsigned int l_hour; // Calculated litres/hour
+
+
+
+
+
 
 /*#define LOGO16_GLCD_HEIGHT 16
 #define LOGO16_GLCD_WIDTH  16
@@ -97,10 +108,6 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
   B00000000, B00110000 };
   */
 
-#if (SSD1306_LCDHEIGHT != 64)
-#error("Height incorrect, please fix Adafruit_SSD1306.h!");
-#endif
-
 
 /*
  * Función llamada cada vez que el caudalímetro produce un pulso.
@@ -113,24 +120,24 @@ void flowISR (){ // Interrupt function
 void setup()   {
   Serial.begin(9600);
 
-  // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // initialize with the I2C addr 0x3D (for the 128x64)
-  display.clearDisplay();
-
-  //Init temperature sensors filters
-  outSensor.begin();
-  outSensor.setFilter('b'); //bessel filter (b), median filter (m) or Chebyshev filter (c)
-  outSensor.setOrder(2);
-  inSensor.begin();
-  inSensor.setFilter('b');
-  inSensor.setOrder(2);
-
   //Init pin
   pinMode(PIN_FLOWMETER, INPUT_PULLUP);
   pinMode(PIN_TEMP_OUT,  INPUT);
   pinMode(PIN_TEMP_IN,   INPUT);
   pinMode(PIN_BUTTON_1,  INPUT_PULLUP);
   pinMode(PIN_LED,       OUTPUT);
+
+  // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
+  //display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // initialize with the I2C addr 0x3D (for the 128x64)
+  //display.clearDisplay();
+
+  //Init temperature sensors filters
+  outSensor.begin();
+  outSensor.setFilter('m'); //bessel filter (b), median filter (m) or Chebyshev filter (c)
+  //outSensor.setOrder(2);
+  inSensor.begin();
+  inSensor.setFilter('m');
+  //inSensor.setOrder(2);
 
   attachInterrupt(0, flowISR, FALLING); // Setup Interrupt
   lastFlowMeter  = millis();
@@ -141,19 +148,21 @@ void setup()   {
   //show logo
   delay(2000);
 
+  lastDisplay=0;
+  lastBuffered=0;
 }
 
 
 void loop() {
   //Lee temperatura de salida
   adcAux = analogRead(PIN_TEMP_OUT);
-  adcOut = outSensor.run(adcAux);
-  Serial.println("OUT: " + String(adcOut) + "(" + String(adcAux) + ")");
+  tempOut = adc2temp(outSensor.run(adcAux), SERIAL_RESISTOR_HOT);
+  Serial.println("OUT: " + String(tempOut) + " ºC (" + String(adcAux) + ")");
 
   //lee temperatura de entrada
   adcAux = analogRead(PIN_TEMP_IN);
-  adcIn = inSensor.run(adcAux);
-  Serial.println("IN: " + String(adcIn) + "(" + String(adcAux) + ")");
+  tempIn = adc2temp(inSensor.run(adcAux), SERIAL_RESISTOR_COLD);
+  Serial.println("IN: " + String(tempIn) + " ºC (" + String(adcAux) + ")");
 
   //lee caudalímetro
   if (millis() - lastFlowMeter >= DELTA_FLOW){
@@ -163,8 +172,37 @@ void loop() {
     Serial.println("FLOW: " + String(Meter.getCurrentFlowrate()) + " l/min, " + String(Meter.getTotalVolume())+ " l total.");
   }
 
+  //valora los avisos
+
+
+  //refresca la pantalla
+  if (millis() - lastDisplay >= DELTA_DISPLAY){
+    //refreshDisplay();
+    lastDisplay = millis();
+  }
+
 }
 
+
+
+
+
+/*
+ * Refresca el display
+*/
+void refreshDisplay(){
+  // Potencia instantánea (W) = calor específico agua  (J/Kg·K) * caudal (Kg/s) * deltaTemperatura (K)
+  //pot = CALOR_ESPECIF_AGUA * Meter.getCurrentFlowrate() * (tempOut-tempIn)
+
+  //display.clearDisplay();
+  //display.setTextSize(1);
+  //display.setTextColor(WHITE);
+  //display.setCursor(0,0);
+  //display.println(String(tempIn) + " ºC " + String(tempOut) + " ºC " + String(pot) + " W");
+
+
+
+}
 
 
 /*
