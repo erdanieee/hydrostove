@@ -10,6 +10,9 @@
 
 // Inicializa el display y variables
 HydroStoveDisplay::HydroStoveDisplay(int pinReset) : _display(pinReset) {
+  _display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // initialize with the I2C addr 0x3D (for the 128x64)
+  _display.clearDisplay();
+
   //clear buffer
   for (int i=0; i<SSD1306_LCDWIDTH; i++){
     _buffer[i] = 0;
@@ -37,6 +40,7 @@ unsigned int HydroStoveDisplay::add(unsigned int tempIn, unsigned int tempOut, u
     _scale++;
 
     //comprime los valores a la mitad del buffer
+    //TODO: comprimir para que solo hay que liberar 1 hueco, y que un parámetro sea el tiempo desde la última vez que se llamó (tick). De esta forma, el ancho sería la suma del tiempo de todas las muestras capturadas, la gráfica se construye uniendo puntos con líneas (en lugar de barras verticales), y para comprimir se buscar la pareja de valores consecutivos con menor diferencia y se elimina uno de ellos.
     while (i<_bufferIndex){
       _buffer[j++] = floor( (_buffer[i++] + _buffer[i++])/2 );
     }
@@ -54,7 +58,6 @@ unsigned int HydroStoveDisplay::add(unsigned int tempIn, unsigned int tempOut, u
   _currentTempIn    = tempIn;
   _currentTempOut   = tempOut;
   _currentFlowRate  = flowRate;
-  refreshDisplay();
 
   return _scale;
 }
@@ -77,9 +80,36 @@ void HydroStoveDisplay::refreshDisplay(){
   for (uint8_t x=0; x<= _bufferIndex; x++){
     int16_t y;
 
-    y = floor(_buffer[x]*16 / _maxValue);
+    y = floor(_buffer[x]*LCD_YELLOW / _maxValue);
     _display.drawLine(x, y, x, SSD1306_LCDHEIGHT-1, WHITE);
   }
 
+  if (_warning){
+      _display.drawBitmap(0,
+                          _display.width()-WARNING_SMALL_ICON_SIZE,
+                          warningSmallIcon,
+                          WARNING_SMALL_ICON_SIZE,
+                          WARNING_SMALL_ICON_SIZE,
+                          WHITE);
+  }
+}
 
+
+void HydroStoveDisplay::showBigWarning(){
+  _display.drawBitmap(LCD_YELLOW,
+                      _display.width()-WARNING_BIG_ICON_SIZE,
+                      warningBigIcon,
+                      WARNING_BIG_ICON_SIZE,
+                      WARNING_BIG_ICON_SIZE,
+                      WHITE);
+}
+
+
+bool HydroStoveDisplay::getWarning(){
+  return _warning;
+}
+
+
+void HydroStoveDisplay::setWarning(bool b){
+  _warning = b;
 }

@@ -66,7 +66,7 @@ Loop:
 #define BCOEFFICIENT         3950                  // The beta coefficient of the thermistor (usually 3000-4000)
 #define SERIESRESISTOR       98700                 // the value of the 'other' resistor
 
-
+#define WARNING_TEMPERATURE   80
 
 
 
@@ -81,7 +81,8 @@ int tempOut, tempIn;
 unsigned long currentTime, lastFlowMeter, lastDisplay, lastBuffered;
 volatile int adcAux;
 unsigned int l_hour; // Calculated litres/hour
-
+unsigned int scale = 1;
+bool led=false;
 
 
 
@@ -118,6 +119,15 @@ void flowISR (){ // Interrupt function
 
 
 void setup()   {
+  pinMode(LED_BUILTIN, OUTPUT);
+  bool led=true;
+  for (int i=0; i<10; i++){
+    digitalWrite(LED_BUILTIN, led);
+    led = !led;
+    delay(400);
+  }
+
+
   Serial.begin(9600);
 
   //Init pin
@@ -125,11 +135,8 @@ void setup()   {
   pinMode(PIN_TEMP_OUT,  INPUT);
   pinMode(PIN_TEMP_IN,   INPUT);
   pinMode(PIN_BUTTON_1,  INPUT_PULLUP);
-  pinMode(PIN_LED,       OUTPUT);
-
-  // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
-  //display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // initialize with the I2C addr 0x3D (for the 128x64)
-  //display.clearDisplay();
+  //pinMode(PIN_LED,       OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   //Init temperature sensors filters
   outSensor.begin();
@@ -154,6 +161,9 @@ void setup()   {
 
 
 void loop() {
+  digitalWrite(LED_BUILTIN, led);
+  led=!led;
+
   //Lee temperatura de salida
   adcAux = analogRead(PIN_TEMP_OUT);
   tempOut = adc2temp(outSensor.run(adcAux), SERIAL_RESISTOR_HOT);
@@ -173,14 +183,25 @@ void loop() {
   }
 
   //valora los avisos
+  if (!display.getWarning() &&
+      ( tempOut >= WARNING_TEMPERATURE || Meter.getCurrentFlowrate() == 0) ){
+    display.setWarning(true);
+    //TODO: play buzzer
+  }
 
+  //añade un nuevo valor al gráfico si procede
+  if (millis() - lastBuffered >= DELTA_DISPLAY*scale){
+    scale = display.add(tempIn, tempOut, Meter.getCurrentFlowrate());
+  }
 
   //refresca la pantalla
+  //TODO: si hay warnings, al ternar gráfica con icono grande de warning!!!
   if (millis() - lastDisplay >= DELTA_DISPLAY){
-    //refreshDisplay();
+    display.refreshDisplay();
     lastDisplay = millis();
   }
 
+  delay(1000);
 }
 
 
