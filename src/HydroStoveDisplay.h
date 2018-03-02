@@ -21,16 +21,35 @@
 
 #define CALOR_ESPECIF_AGUA  418    // J/K·kg
 
-//Iconos creados con gimp (bmp 1 bit color) y transformados con lcdasistant (http://en.radzio.dxp.pl/bitmap_converter/)
-#define WARNING_SMALL_ICON_SIZE   16
-const unsigned char PROGMEM warningSmallIcon [] = {
-0x00, 0x00, 0x00, 0x80, 0xE0, 0x78, 0x1E, 0xC7, 0xC7, 0x1E, 0x78, 0xE0, 0x80, 0x00, 0x00, 0x00,
-0xE0, 0xF8, 0xDE, 0xC7, 0xC1, 0xC0, 0xC0, 0xDB, 0xDB, 0xC0, 0xC0, 0xC1, 0xC7, 0xDE, 0xF8, 0xE0
+const unsigned char PROGMEM test[] = {
+  B10000000, B0000010,
+  B01000000, B0000001,
+  B00100000, B0000010,
+  B00011110, B0111100,
+  B00001000, B0001000,
+  B00000100, B0010000,
+  B00000010, B0100000,
+  B00000001, B1000000,
+  B10000000, B0000010,
+  B01000000, B0000001,
+  B00100000, B0000010,
+  B00011110, B0111100,
+  B00001000, B0001000,
+  B00000100, B0010000,
+  B00000010, B0100000,
+  B00000001, B1000000
 };
 
-//Iconos creados con gimp (bmp 1 bit color) y transformados con lcdasistant (http://en.radzio.dxp.pl/bitmap_converter/)
+//Iconos creados con gimp (bmp 1 bit color) y transformados con lcdasistant orientación horizontal (http://en.radzio.dxp.pl/bitmap_converter/)
+#define WARNING_SMALL_ICON_SIZE   16
+const unsigned char PROGMEM warningSmallIcon [] = {
+  0x01, 0x80, 0x03, 0xC0, 0x03, 0xC0, 0x06, 0x60, 0x06, 0x60, 0x0C, 0x30, 0x0D, 0xB0, 0x19, 0x98,
+  0x19, 0x98, 0x31, 0x8C, 0x30, 0x0C, 0x61, 0x86, 0x61, 0x86, 0xC0, 0x03, 0xFF, 0xFF, 0xFF, 0xFF
+};
+
+//Iconos creados con gimp (bmp 1 bit color) y transformados con lcdasistant orientación horizontal (http://en.radzio.dxp.pl/bitmap_converter/)
 #define WARNING_BIG_ICON_SIZE   48
-static const unsigned char PROGMEM warningBigIcon [] = {
+const unsigned char PROGMEM warningBigIcon [] = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0xC0, 0xF0, 0xFC, 0xFE, 0xFF, 0xFF, 0xFF, 0xFE, 0xF8, 0xE0, 0x80, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -54,7 +73,7 @@ static const unsigned char PROGMEM warningBigIcon [] = {
 
 class HydroStoveDisplay {
   public:
-    HydroStoveDisplay (int pinReset);
+    HydroStoveDisplay ();
 
     //añade un nuevo valor al buffer. No repinta
     unsigned int add(unsigned int tempIn, unsigned int tempOut, unsigned long flowRate);

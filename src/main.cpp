@@ -34,6 +34,10 @@ Loop:
 #include <FlowMeter.h>        //see https://github.com/sekdiy/FlowMeter
 #include <main.h>
 #include <HydroStoveDisplay.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>     //see https://github.com/adafruit/Adafruit-GFX-Library
+#include <Adafruit_SSD1306.h> //see https://github.com/adafruit/Adafruit_SSD1306
 
 
 //Define pin in/out
@@ -68,13 +72,6 @@ Loop:
 
 #define WARNING_TEMPERATURE   80
 
-
-
-HydroStoveDisplay display(PIN_OLED_RESET);
-
-FlowSensorProperties MySensor = {60.0f, 4.5f, {1.2, 1.1, 1.05, 1, 1, 1, 1, 0.95, 0.9, 0.8}}; //see https://github.com/sekdiy/FlowMeter/wiki/Calibration
-FlowMeter Meter = FlowMeter(PIN_FLOWMETER, MySensor);
-
 SignalFilter outSensor, inSensor;
 int tempOut, tempIn;
 
@@ -85,29 +82,10 @@ unsigned int scale = 1;
 bool led=false;
 
 
-
-
-
-/*#define LOGO16_GLCD_HEIGHT 16
-#define LOGO16_GLCD_WIDTH  16
-static const unsigned char PROGMEM logo16_glcd_bmp[] =
-{ B00000000, B11000000,
-  B00000001, B11000000,
-  B00000001, B11000000,
-  B00000011, B11100000,
-  B11110011, B11100000,
-  B11111110, B11111000,
-  B01111110, B11111111,
-  B00110011, B10011111,
-  B00011111, B11111100,
-  B00001101, B01110000,
-  B00011011, B10100000,
-  B00111111, B11100000,
-  B00111111, B11110000,
-  B01111100, B11110000,
-  B01110000, B01110000,
-  B00000000, B00110000 };
-  */
+HydroStoveDisplay display();
+//Adafruit_SSD1306 display;
+FlowSensorProperties MySensor = {60.0f, 4.5f, {1.2, 1.1, 1.05, 1, 1, 1, 1, 0.95, 0.9, 0.8}}; //see https://github.com/sekdiy/FlowMeter/wiki/Calibration
+FlowMeter Meter = FlowMeter(PIN_FLOWMETER, MySensor);
 
 
 /*
@@ -124,11 +102,11 @@ void setup()   {
   for (int i=0; i<10; i++){
     digitalWrite(LED_BUILTIN, led);
     led = !led;
-    delay(400);
+    delay(100);
   }
 
 
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
   //Init pin
   pinMode(PIN_FLOWMETER, INPUT_PULLUP);
@@ -167,22 +145,22 @@ void loop() {
   //Lee temperatura de salida
   adcAux = analogRead(PIN_TEMP_OUT);
   tempOut = adc2temp(outSensor.run(adcAux), SERIAL_RESISTOR_HOT);
-  Serial.println("OUT: " + String(tempOut) + " ºC (" + String(adcAux) + ")");
+  //Serial.println("OUT: " + String(tempOut) + " ºC (" + String(adcAux) + ")");
 
   //lee temperatura de entrada
   adcAux = analogRead(PIN_TEMP_IN);
   tempIn = adc2temp(inSensor.run(adcAux), SERIAL_RESISTOR_COLD);
-  Serial.println("IN: " + String(tempIn) + " ºC (" + String(adcAux) + ")");
+  //Serial.println("IN: " + String(tempIn) + " ºC (" + String(adcAux) + ")");
 
   //lee caudalímetro
   if (millis() - lastFlowMeter >= DELTA_FLOW){
     Meter.tick(millis() - lastFlowMeter);
     lastFlowMeter = millis();
     // output some measurement result
-    Serial.println("FLOW: " + String(Meter.getCurrentFlowrate()) + " l/min, " + String(Meter.getTotalVolume())+ " l total.");
+    //Serial.println("FLOW: " + String(Meter.getCurrentFlowrate()) + " l/min, " + String(Meter.getTotalVolume())+ " l total.");
   }
 
-  //valora los avisos
+  /*//valora los avisos
   if (!display.getWarning() &&
       ( tempOut >= WARNING_TEMPERATURE || Meter.getCurrentFlowrate() == 0) ){
     display.setWarning(true);
@@ -199,31 +177,13 @@ void loop() {
   if (millis() - lastDisplay >= DELTA_DISPLAY){
     display.refreshDisplay();
     lastDisplay = millis();
-  }
+  }*/
 
   delay(1000);
 }
 
 
 
-
-
-/*
- * Refresca el display
-*/
-void refreshDisplay(){
-  // Potencia instantánea (W) = calor específico agua  (J/Kg·K) * caudal (Kg/s) * deltaTemperatura (K)
-  //pot = CALOR_ESPECIF_AGUA * Meter.getCurrentFlowrate() * (tempOut-tempIn)
-
-  //display.clearDisplay();
-  //display.setTextSize(1);
-  //display.setTextColor(WHITE);
-  //display.setCursor(0,0);
-  //display.println(String(tempIn) + " ºC " + String(tempOut) + " ºC " + String(pot) + " W");
-
-
-
-}
 
 
 /*

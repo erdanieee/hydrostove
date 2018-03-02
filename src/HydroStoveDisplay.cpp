@@ -1,6 +1,8 @@
 #include <Arduino.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>     //see https://github.com/adafruit/Adafruit-GFX-Library
+#include <Adafruit_SSD1306.h> //see https://github.com/adafruit/Adafruit_SSD1306
 #include <math.h>
 #include <HydroStoveDisplay.h>
 
@@ -9,9 +11,13 @@
 
 
 // Inicializa el display y variables
-HydroStoveDisplay::HydroStoveDisplay(int pinReset) : _display(pinReset) {
-  _display.begin(SSD1306_SWITCHCAPVCC, 0x3D);  // initialize with the I2C addr 0x3D (for the 128x64)
+HydroStoveDisplay::HydroStoveDisplay(){
+  _display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3D (for the 128x64)
+  _display.setTextColor(WHITE);
+  _display.setCursor(0,0);
   _display.clearDisplay();
+  _display.println("Inicializado!");
+  _display.display();
 
   //clear buffer
   for (int i=0; i<SSD1306_LCDWIDTH; i++){
@@ -92,6 +98,8 @@ void HydroStoveDisplay::refreshDisplay(){
                           WARNING_SMALL_ICON_SIZE,
                           WHITE);
   }
+
+  _display.display();
 }
 
 
